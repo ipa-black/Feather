@@ -3,7 +3,7 @@
 //  SY STORE
 //
 //  Created by samara on 10.04.2025.
-//  Modified for SY STORE.
+//  Modified for SY STORE - Final Version.
 //
 
 import SwiftUI
@@ -34,18 +34,20 @@ struct SYStoreApp: App {
 			.onReceive(NotificationCenter.default.publisher(for: .heartbeatInvalidHost)) { _ in
 				DispatchQueue.main.async {
 					UIAlertController.showAlertWithOk(
-						title: "InvalidHostID",
-						message: .localized("Your pairing file is invalid and is incompatible with your device, please import a valid pairing file.")
+						title: "خطأ في ملف الربط",
+						message: "ملف الربط الخاص بك غير متوافق مع هذا الجهاز، يرجى استيراد ملف ربط صالح."
 					)
 				}
 			}
-			// dear god help me
 			.onAppear {
-				if let style = UIUserInterfaceStyle(rawValue: UserDefaults.standard.integer(forKey: "SYStore.userInterfaceStyle")) {
+                // 1. تطبيق وضع المظهر (فاتح/داكن/تلقائي) عند الفتح
+				if let style = UIUserInterfaceStyle(rawValue: UserDefaults.standard.integer(forKey: "Feather.userInterfaceStyle")) {
 					UIApplication.topViewController()?.view.window?.overrideUserInterfaceStyle = style
 				}
 				
-				UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: UserDefaults.standard.string(forKey: "SYStore.userTintColor") ?? "#848ef9"))
+                // 2. تطبيق لون المتجر المخصص (الأزرق السماوي الخاص بك) عند الفتح
+				let storedHex = UserDefaults.standard.string(forKey: "Feather.userTintColor") ?? "#16BFE0"
+				UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: storedHex))
 			}
 		}
 	}
@@ -93,30 +95,13 @@ struct SYStoreApp: App {
 					p12Password: password
 				) { error in
 					if let error = error {
-						UIAlertController.showAlertWithOk(title: .localized("Error"), message: error.localizedDescription)
+						UIAlertController.showAlertWithOk(title: "خطأ", message: error.localizedDescription)
 					} else {
 						generator.notificationOccurred(.success)
 					}
 				}
 				
 				return
-			}
-			/// systore://export-certificate?callback_template=<template>
-			/// ?callback_template=: This is how we callback to the application requesting the certificate, this will be a url scheme
-			/// 	example: livecontainer%3A%2F%2Fcertificate%3Fcert%3D%24%28BASE64_CERT%29%26password%3D%24%28PASSWORD%29
-			/// 	decoded: livecontainer://certificate?cert=$(BASE64_CERT)&password=$(PASSWORD)
-			/// $(BASE64_CERT) and $(PASSWORD) must be presenting in the callback template so we can replace them with the proper content
-			if url.host == "export-certificate" {
-				guard
-					let components = URLComponents(url: url, resolvingAgainstBaseURL: false)
-				else {
-					return
-				}
-				
-				let queryItems = components.queryItems?.reduce(into: [String: String]()) { $0[$1.name.lowercased()] = $1.value } ?? [:]
-				guard let callbackTemplate = queryItems["callback_template"]?.removingPercentEncoding else { return }
-				
-				FR.exportCertificateAndOpenUrl(using: callbackTemplate)
 			}
 			/// systore://source/<url>
 			if let fullPath = url.validatedScheme(after: "/source/") {
@@ -165,8 +150,9 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 				config.urlCache = nil
 				return DataLoader(configuration: config)
 			}()
-			let dataCache = try? DataCache(name: "com.systore.datacache") // disk cache
-			let imageCache = Nuke.ImageCache() // memory cache
+            // تغيير اسم الكاش ليكون خاص بـ SY Store
+			let dataCache = try? DataCache(name: "com.systore.datacache") 
+			let imageCache = Nuke.ImageCache()
 			dataCache?.sizeLimit = 500 * 1024 * 1024
 			imageCache.costLimit = 100 * 1024 * 1024
 			$0.dataCache = dataCache
@@ -235,14 +221,11 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 					p12Password: password,
 					certificateName: certName,
 					isDefault: true
-				) { _ in
-					
-				}
+				) { _ in }
 			}
 			UserDefaults.standard.set(true, forKey: "systore.didImportDefaultCertificates")
 		} catch {
 			Logger.misc.error("Failed to list signing-assets: \(error)")
 		}
 	}
-
 }
