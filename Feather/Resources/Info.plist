@@ -52,9 +52,8 @@
 			<key>UIPrerenderedIcon</key>
 			<false/>
 		</dict>
-        <key>CFBundleAlternateIcons</key>
+		<key>CFBundleAlternateIcons</key>
 		<dict>
-            <!-- تم تنظيف الأيقونات البديلة لتقليل حجم التطبيق والتركيز على الهوية الجديدة -->
 			<key>V1</key>
 			<dict>
 				<key>CFBundleIconFiles</key>
@@ -160,6 +159,6 @@
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
 		<true/>
-	</Section>
+	</dict>
 </dict>
 </plist>
