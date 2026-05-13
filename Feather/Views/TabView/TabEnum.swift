@@ -40,7 +40,7 @@ enum TabEnum: String, CaseIterable, Hashable {
 	static func view(for tab: TabEnum) -> some View {
 		switch tab {
 		case .home: HomeView() 
-		case .apps: SourcesView() // تم التصحيح هنا: استبدال AppsView بـ SourcesView
+		case .apps: SourcesView() // تم التصحيح: استبدال الاسم القديم بالاسم الفعلي للملف SourcesView
 		case .signing: LibraryView()
 		case .settings: SettingsView()
 		case .certificates: NBNavigationView("الشهادات") { CertificatesView() }
