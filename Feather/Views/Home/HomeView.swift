@@ -2,8 +2,7 @@
 //  HomeView.swift
 //  SY STORE
 //
-//  Created by samara on 13.05.2025.
-//  New file created for SY STORE.
+//  Created by samara on 13.05.2026.
 //
 
 import SwiftUI
@@ -14,12 +13,10 @@ import NimbleViews
 struct HomeView: View {
     @StateObject var viewModel = SourcesViewModel.shared
     
-    // مصفوفة لتخزين أحدث التطبيقات
     @State private var _recentApps: [(source: ASRepository, app: ASRepository.App)] = []
-    @State private var _selectedRoute: SourceAppsView.SourceAppRoute?
+    @State private var _selectedRoute: SourceAppRoute? // استخدام النوع الجديد هنا
     @State private var isLoading = true
 
-    // جلب المصادر المحفوظة في التطبيق
     @FetchRequest(
         entity: AltSource.entity(),
         sortDescriptors: [NSSortDescriptor(keyPath: \AltSource.name, ascending: true)],
@@ -36,7 +33,7 @@ struct HomeView: View {
                         ContentUnavailableView {
                             Label("لا توجد تطبيقات", systemImage: "tray.fill")
                         } description: {
-                            Text("لم يتم العثور على تطبيقات في المصادر الحالية.")
+                            Text("لم يتم العثور على تطبيقات حالياً.")
                         }
                     } else {
                         Text("لا توجد تطبيقات")
@@ -47,26 +44,23 @@ struct HomeView: View {
                         Section {
                             ForEach(_recentApps, id: \.app.currentUniqueId) { item in
                                 Button {
-                                    _selectedRoute = SourceAppsView.SourceAppRoute(source: item.source, app: item.app)
+                                    _selectedRoute = SourceAppRoute(source: item.source, app: item.app)
                                 } label: {
-                                    // استخدام نفس تصميم الخلية الاحترافي الذي عدلناه سابقاً
                                     SourceAppsCellView(source: item.source, app: item.app)
                                 }
                                 .buttonStyle(.plain)
                             }
                         } header: {
-                            Text("أحدث الإضافات والتحديثات")
+                            Text("أحدث الإضافات")
                                 .font(.headline)
                                 .foregroundColor(.primary)
-                        } footer: {
-                            Text("يتم تحديث هذه القائمة تلقائياً بأحدث التطبيقات من مصادرك.")
                         }
                     }
                     .listStyle(.insetGrouped)
                 }
             }
-            // الانتقال إلى صفحة تفاصيل التطبيق عند الضغط عليه
-            .navigationDestinationIfAvailable(item: $_selectedRoute) { route in
+            // إصلاح الخطأ: استخدام الدالة المباشرة هنا
+            .navigationDestination(item: $_selectedRoute) { route in
                 SourceAppsDetailView(source: route.source, app: route.app)
             }
             .refreshable {
@@ -78,41 +72,55 @@ struct HomeView: View {
             await viewModel.fetchSources(_sources)
             _loadRecentApps()
         }
-        .onChange(of: viewModel.isFinished) { _ in
-            _loadRecentApps()
-        }
     }
 
-    // MARK: - دالة ترتيب وجلب أحدث التطبيقات
     private func _loadRecentApps() {
         isLoading = true
-        
         Task {
-            // 1. استخراج المصادر الجاهزة
             let loadedSources = _sources.compactMap { viewModel.sources[$0] }
             var allApps: [(source: ASRepository, app: ASRepository.App)] = []
 
-            // 2. دمج جميع التطبيقات من جميع المصادر
             for source in loadedSources {
                 for app in source.apps {
                     allApps.append((source: source, app: app))
                 }
             }
 
-            // 3. ترتيب التطبيقات حسب التاريخ (الأحدث أولاً)
             allApps.sort {
-                let d1 = $0.app.currentDate?.date ?? .distantPast
-                let d2 = $1.app.currentDate?.date ?? .distantPast
-                return d1 > d2
+                ($0.app.currentDate?.date ?? .distantPast) > ($1.app.currentDate?.date ?? .distantPast)
             }
 
-            // 4. أخذ أول 25 تطبيق فقط لعرضها في الصفحة الرئيسية
             let topApps = Array(allApps.prefix(25))
 
-            // 5. تحديث الواجهة
             DispatchQueue.main.async {
                 self._recentApps = topApps
                 self.isLoading = false
+            }
+        }
+    }
+}
+
+// MARK: - Supporting Types
+// تعريف النوع هنا لضمان عدم وجود خطأ في الوصول إليه
+struct SourceAppRoute: Identifiable, Hashable {
+    let source: ASRepository
+    let app: ASRepository.App
+    let id: String = UUID().uuidString
+}
+
+// MARK: - Extension for Navigation
+extension View {
+    @ViewBuilder
+    func navigationDestination<Item: Identifiable & Hashable, Destination: View>(
+        item: Binding<Item?>,
+        @ViewBuilder destination: @escaping (Item) -> Destination
+    ) -> some View {
+        self.navigationDestination(isPresented: Binding(
+            get: { item.wrappedValue != nil },
+            set: { if !$0 { item.wrappedValue = nil } }
+        )) {
+            if let selectedItem = item.wrappedValue {
+                destination(selectedItem)
             }
         }
     }
