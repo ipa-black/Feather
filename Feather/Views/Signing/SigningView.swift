@@ -49,7 +49,7 @@ struct SigningView: View {
 		
 	// MARK: Body
 	var body: some View {
-		NBNavigationView("توقيع التطبيق", displayMode: .inline) { // إضافة عنوان بدلاً من الشعار
+		NBNavigationView("توقيع التطبيق", displayMode: .inline) {
 			Form {
 				_customizationOptions(for: app)
 				_cert()
@@ -60,9 +60,8 @@ struct SigningView: View {
 					.frame(height: 30)
 					.listRowBackground(EmptyView())
 			}
-            .scrollContentBackground(.hidden) // إخفاء خلفية القائمة الافتراضية
+            .scrollContentBackground(.hidden) 
             .background {
-                // إضافة التصميم الزجاجي (Glassy Effect)
                 Color.clear
                     .background(.ultraThinMaterial)
                     .ignoresSafeArea()
@@ -88,7 +87,6 @@ struct SigningView: View {
 			}
 			.toolbar {
 				NBToolbarButton(role: .dismiss)
-                // تمت إزالة شعار الريشة (Glyph) من هنا
 				NBToolbarButton(
 					"إعادة تعيين",
 					style: .text,
@@ -96,7 +94,7 @@ struct SigningView: View {
 				) {
 					_temporaryOptions = OptionsManager.shared.options
 					appIcon = nil
-                    _duplicationCount = 0 // تصفير العداد عند إعادة التعيين
+                    _duplicationCount = 0
                     _updateBundleID()
 				}
 			}
@@ -126,7 +124,6 @@ struct SigningView: View {
 			.animation(.smooth, value: _isSigning)
 		}
 		.onAppear {
-			// ppq protection
 			if
 				_optionsManager.options.ppqProtection,
 				let identifier = app.identifier,
@@ -152,7 +149,6 @@ struct SigningView: View {
 		}
 	}
     
-    // دالة لتحديث المعرّف بناءً على عدد التكرار
     private func _updateBundleID() {
         let baseBundle = app.identifier ?? "com.unknown.app"
         if _duplicationCount > 0 {
@@ -168,6 +164,7 @@ extension SigningView {
 	@ViewBuilder
 	private func _customizationOptions(for app: AppInfoPresentable) -> some View {
 		NBSection("التخصيص") {
+            // تصغير حجم الأيقونة العلوية لتبدو أبسط
 			Menu {
 				Button("اختيار أيقونة بديلة", systemImage: "app.dashed") { _isAltPickerPresenting = true }
 				Button("اختيار من الملفات", systemImage: "folder") { _isFilePickerPresenting = true }
@@ -177,7 +174,7 @@ extension SigningView {
 					Image(uiImage: icon)
 						.appIconStyle()
 				} else {
-					FRAppIconView(app: app, size: 56)
+					FRAppIconView(app: app, size: 48) // تم تصغير الحجم هنا من 56 إلى 48
 				}
 			}
 			
@@ -196,43 +193,47 @@ extension SigningView {
 				)
 			}
             
-            // إضافة قسم التكرار الجديد تحت المعرّف
-            VStack(alignment: .leading, spacing: 8) {
+            // قسم التكرار المبسط والمتناسق
+            VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text("تكرار التطبيق")
                     Spacer()
-                    Button(action: {
-                        if _duplicationCount > 0 {
-                            _duplicationCount -= 1
-                            _updateBundleID()
+                    
+                    // أزرار أنيقة ومصغرة
+                    HStack(spacing: 12) {
+                        Button(action: {
+                            if _duplicationCount > 0 {
+                                _duplicationCount -= 1
+                                _updateBundleID()
+                            }
+                        }) {
+                            Image(systemName: "minus.circle.fill")
+                                .font(.title3) // تصغير الأزرار
+                                .foregroundColor(_duplicationCount > 0 ? .red : .gray.opacity(0.5))
                         }
-                    }) {
-                        Image(systemName: "minus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(_duplicationCount > 0 ? .red : .gray)
-                    }
-                    .buttonStyle(.borderless)
+                        .buttonStyle(.borderless)
 
-                    Text("\(_duplicationCount)")
-                        .font(.headline)
-                        .frame(width: 30, alignment: .center)
+                        Text("\(_duplicationCount)")
+                            .font(.body.monospacedDigit()) // خط رقمي مرتب
+                            .frame(width: 20, alignment: .center)
 
-                    Button(action: {
-                        _duplicationCount += 1
-                        _updateBundleID()
-                    }) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title2)
-                            .foregroundColor(.accentColor)
+                        Button(action: {
+                            _duplicationCount += 1
+                            _updateBundleID()
+                        }) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.title3) // تصغير الأزرار
+                                .foregroundColor(.accentColor)
+                        }
+                        .buttonStyle(.borderless)
                     }
-                    .buttonStyle(.borderless)
                 }
-
-                Text("ملاحظة: اذا اردت تكرار التطبيق اضغط على +")
-                    .font(.caption)
+                
+                Text("اضغط على + لتكرار التطبيق")
+                    .font(.caption2)
                     .foregroundColor(.secondary)
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, 2)
             
 			_infoCell("الإصدار", desc: _temporaryOptions.appVersion ?? app.version) {
 				SigningPropertiesView(
@@ -360,7 +361,6 @@ extension SigningView {
 				
 				if _temporaryOptions.post_installAppAfterSigned {
 					DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
-                        // تم تغيير الإشعار ليتوافق مع SY STORE
 						NotificationCenter.default.post(name: Notification.Name("SYStore.installApp"), object: nil)
 					}
 				}
