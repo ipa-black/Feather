@@ -46,7 +46,7 @@ struct SourceAppsView: View {
 	
 	@State private var _sortOption: SortOption = .default
 	@State private var _selectedRoute: SourceAppRoute?
-    @State private var _selectedCategory: AppCategory = .all // التصنيف المحدد
+    @State private var _selectedCategory: AppCategory = .all
 	
 	@State var isLoading = true
 	@State var hasLoadedOnce = false
@@ -76,6 +76,7 @@ struct SourceAppsView: View {
 					searchText: $_searchText,
 					sortOption: $_sortOption,
 					sortAscending: $_sortAscending,
+                    selectedCategory: $_selectedCategory, // تمرير التصنيف
 					onSelect: {self._selectedRoute = $0}
 				)
 				.ignoresSafeArea()
@@ -96,28 +97,8 @@ struct SourceAppsView: View {
 					}
 				}
 			}
-			
-			Divider()
-			
-			Button("نسخ المصادر", systemImage: "doc.on.doc") {
-				guard !object.isEmpty else {
-					UIAlertController.showAlertWithOk(
-						title: "خطأ",
-						message: "لا توجد مصادر لنسخها"
-					)
-					return
-				}
-				UIPasteboard.general.string = object.map {
-					$0.sourceURL!.absoluteString
-				}.joined(separator: "\n")
-				UIAlertController.showAlertWithOk(
-					title: "نجاح",
-					message: "تم نسخ المصادر إلى الحافظة"
-				)
-			}
 		}
 		.toolbar {
-			// قائمة التصنيفات والفرز (كما في الصورة)
 			NBToolbarMenu(
 				systemImage: "line.3.horizontal.decrease",
 				style: .icon,
@@ -168,14 +149,12 @@ struct SourceAppsView: View {
 // MARK: - Extension: View (Sort & Category)
 extension SourceAppsView {
     
-    // قائمة التصنيفات
     @ViewBuilder
     private func _categoryActions() -> some View {
         Section("التصنيفات") {
             ForEach(AppCategory.allCases, id: \.self) { category in
                 Button {
                     _selectedCategory = category
-                    // ملاحظة: سيتم تطبيق الفلترة الفعلية لاحقاً داخل SourceAppsTableRepresentableView
                 } label: {
                     HStack {
                         Text(category.rawValue)
@@ -189,7 +168,6 @@ extension SourceAppsView {
         }
     }
 
-    // قائمة الترتيب
 	@ViewBuilder
 	private func _sortActions() -> some View {
 		Section("ترتيب حسب") {
