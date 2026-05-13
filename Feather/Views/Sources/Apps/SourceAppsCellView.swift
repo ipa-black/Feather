@@ -26,7 +26,7 @@ struct SourceAppsCellView: View {
 					subtitle: Self.appDescription(app: app),
 					iconUrl: app.iconURL
 				)
-				.overlay(alignment: .bottomTrailing) { // تغيير مكان الأيقونة الصغيرة لتتناسب مع اللغة العربية (RTL)
+				.overlay(alignment: .bottomTrailing) {
 					if let iconURL = source.currentIconURL {
 						LazyImage(url: iconURL) { state in
 							if let image = state.image {
@@ -38,7 +38,7 @@ struct SourceAppsCellView: View {
 					}
 				}
                 
-                Spacer() // إضافة مسافة لدفع زر التحميل إلى الطرف الآخر كما في الصورة
+                Spacer() // دفع زر التنزيل لليسار
                 
 				DownloadButtonView(app: app)
 			}
@@ -60,7 +60,7 @@ struct SourceAppsCellView: View {
 	static func appDescription(app: ASRepository.App) -> String {
 		let optionalComponents: [String?] = [
 			app.currentVersion,
-            app.subtitle ?? "تطبيق مميز" // تعريب النص الافتراضي ليتناسب مع المتجر
+            app.subtitle ?? "تطبيق مميز"
 		]
 		
 		let components: [String] = optionalComponents.compactMap { value in
