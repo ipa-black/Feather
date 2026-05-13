@@ -1,8 +1,9 @@
 //
-//  SourceAppsTableView.swift
-//  Feather
+//  SourceAppsTableRepresentableView.swift
+//  SY STORE
 //
 //  Created by samara on 3.05.2025.
+//  Modified for SY STORE.
 //
 
 import SwiftUI
@@ -14,6 +15,7 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 	@Binding var searchText: String
 	@Binding var sortOption: SourceAppsView.SortOption
 	@Binding var sortAscending: Bool
+    @Binding var selectedCategory: SourceAppsView.AppCategory // إضافة متغير التصنيف
 	var onSelect: (SourceAppsView.SourceAppRoute) -> Void
 	
 	func makeUIView(context: Context) -> UITableView {
@@ -63,13 +65,15 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 		let searchChanged = context.coordinator.searchText != searchText
 		let sortOptionChanged = context.coordinator.sortOption != sortOption
 		let sortDirectionChanged = context.coordinator.sortAscending != sortAscending
+        let categoryChanged = context.coordinator.selectedCategory != selectedCategory
 		
 		context.coordinator.sources = sources
 		context.coordinator.searchText = searchText
 		context.coordinator.sortOption = sortOption
 		context.coordinator.sortAscending = sortAscending
+        context.coordinator.selectedCategory = selectedCategory
 		
-		if sourcesChanged || searchChanged || sortOptionChanged || sortDirectionChanged {
+        if sourcesChanged || searchChanged || sortOptionChanged || sortDirectionChanged || categoryChanged {
 			context.coordinator.invalidateCache()
 		}
 	}
@@ -80,6 +84,7 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 			searchText: searchText,
 			sortOption: sortOption,
 			sortAscending: sortAscending,
+            selectedCategory: selectedCategory,
 			onSelect: onSelect
 		)
 	}
@@ -91,6 +96,7 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 	var searchText: String
 	var sortOption: SourceAppsView.SortOption
 	var sortAscending: Bool
+    var selectedCategory: SourceAppsView.AppCategory
 	let onSelect: (SourceAppsView.SourceAppRoute) -> Void
 	
 	private var _groupedAppsByNameFirstLetter: [String: [(source: ASRepository, app: ASRepository.App)]] = [:]
@@ -117,12 +123,14 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 		searchText: String,
 		sortOption: SourceAppsView.SortOption,
 		sortAscending: Bool,
+        selectedCategory: SourceAppsView.AppCategory,
 		onSelect: @escaping (SourceAppsView.SourceAppRoute) -> Void
 	) {
 		self.sources = sources
 		self.searchText = searchText
 		self.sortOption = sortOption
 		self.sortAscending = sortAscending
+        self.selectedCategory = selectedCategory
 		self.onSelect = onSelect
 		super.init()
 		
@@ -132,7 +140,36 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 	}
 	
 	private func _calculateSortedApps() -> [(source: ASRepository, app: ASRepository.App)] {
-		let filtered = _allAppsWithSource.filter {
+        var baseApps = _allAppsWithSource
+        
+        // 1. الفلترة حسب التصنيف باستخدام الكلمات المفتاحية الذكية
+        if selectedCategory != .all {
+            baseApps = baseApps.filter { entry in
+                let keywords: [String]
+                switch selectedCategory {
+                case .all: return true
+                case .social: keywords = ["social", "networking", "chat", "messenger", "whatsapp", "instagram", "اجتماعي", "تواصل"]
+                case .entertainment: keywords = ["entertainment", "music", "movie", "video", "youtube", "ترفيه", "موسيقى", "فيديو"]
+                case .games: keywords = ["games", "game", "ألعاب", "العاب", "لعبة"]
+                case .photoVideo: keywords = ["photo", "camera", "editor", "صورة", "تصوير", "محرر"]
+                case .developer: keywords = ["developer", "utilities", "tool", "jailbreak", "مطور", "ادوات", "أدوات"]
+                case .lifestyle: keywords = ["lifestyle", "health", "fitness", "نمط", "حياة", "صحة"]
+                case .other: return true // نعرض كل ما تبقى أو يمكن تجاهل هذا الفلتر
+                }
+                
+                let searchSpace = [
+                    entry.app.name,
+                    entry.app.subtitle,
+                    entry.app.description,
+                    entry.app.localizedDescription
+                ].compactMap { $0?.lowercased() }.joined(separator: " ")
+                
+                return keywords.contains(where: { searchSpace.contains($0) })
+            }
+        }
+        
+        // 2. الفلترة حسب البحث اليدوي
+		let filtered = baseApps.filter {
 			searchText.isEmpty ||
 				($0.app.name?.localizedCaseInsensitiveContains(searchText) ?? false) ||
 				($0.app.description?.localizedCaseInsensitiveContains(searchText) ?? false) ||
@@ -140,6 +177,7 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 				($0.app.localizedDescription?.localizedCaseInsensitiveContains(searchText) ?? false)
 		}
 		
+        // 3. ترتيب التطبيقات
 		switch sortOption {
 		case .default:
 			_groupedAppsByDate = [:]
@@ -202,16 +240,16 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 	
 	func numberOfSections(in tableView: UITableView) -> Int {
 		switch sortOption {
-		case .default: 1
-		case .name, .date: _sortedSectionTitles.count
+		case .default: return 1
+		case .name, .date: return _sortedSectionTitles.count
 		}
 	}
 	
 	func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
 		switch sortOption {
-		case .default: _sortedApps.count
-		case .name: _groupedAppsByNameFirstLetter[_sortedSectionTitles[section]]?.count ?? 0
-		case .date: _groupedAppsByDate[_sortedSectionTitles[section]]?.count ?? 0
+		case .default: return _sortedApps.count
+		case .name: return _groupedAppsByNameFirstLetter[_sortedSectionTitles[section]]?.count ?? 0
+		case .date: return _groupedAppsByDate[_sortedSectionTitles[section]]?.count ?? 0
 		}
 	}
 	
@@ -250,7 +288,7 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 		let title: String
 		
 		switch sortOption {
-		case .default: title = .localized("%lld Apps", arguments: _sortedApps.count)
+		case .default: title = "\(_sortedApps.count) تطبيقات"
 		case .name, .date: title = _sortedSectionTitles[section]
 		}
 		
@@ -287,7 +325,7 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 			previewProvider: nil
 		) { _ in
 			let versionsMenu = UIMenu(
-				title: .localized("Copy Download URLs"),
+				title: "نسخ روابط التحميل",
 				image: UIImage(systemName: "list.bullet"),
 				children: self._contextActions(for: entry.app, with: { version in
 					UIPasteboard.general.string = version?.absoluteString
@@ -295,7 +333,7 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 			)
 			
 			let downloadsMenu = UIMenu(
-				title: .localized("Previous Versions"),
+				title: "الإصدارات السابقة",
 				image: UIImage(systemName: "square.and.arrow.down.on.square"),
 				children: self._contextActions(for: entry.app, with: { version in
 					if let url = version {
