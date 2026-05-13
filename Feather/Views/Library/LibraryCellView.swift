@@ -1,8 +1,9 @@
 //
-//  LibraryAppIconView.swift
-//  Feather
+//  LibraryCellView.swift
+//  SY STORE
 //
 //  Created by samara on 11.04.2025.
+//  Modified for SY STORE.
 //
 
 import SwiftUI
@@ -48,7 +49,7 @@ struct LibraryCellView: View {
 		let isRegular = horizontalSizeClass != .compact
 		let isEditing = editMode?.wrappedValue == .active
 		
-		HStack(spacing: 18) {
+		HStack(spacing: 14) {
 			if isEditing {
 				Button {
 					_toggleSelection()
@@ -60,17 +61,21 @@ struct LibraryCellView: View {
 				.buttonStyle(.borderless)
 			}
 			
-			FRAppIconView(app: app, size: 57)
-			
+            // زر الأكشن (توقيع / تثبيت) يظهر في البداية كما في الصورة
+            if !isEditing {
+                _buttonActions(for: app)
+            }
+            
+            Spacer() // مسافة لدفع النصوص والأيقونة للطرف الآخر
+            
 			NBTitleWithSubtitleView(
-				title: app.name ?? .localized("Unknown"),
+				title: app.name ?? "غير معروف",
 				subtitle: _desc,
 				linelimit: 0
 			)
-			
-			if !isEditing {
-				_buttonActions(for: app)
-			}
+            .multilineTextAlignment(.trailing) // محاذاة النص لليمين
+            
+            FRAppIconView(app: app, size: 57)
 		}
 		.padding(isRegular ? 12 : 0)
 		.background(
@@ -105,7 +110,7 @@ struct LibraryCellView: View {
 		if let version = app.version, let id = app.identifier {
 			return "\(version) • \(id)"
 		} else {
-			return .localized("Unknown")
+			return "معلومات غير معروفة"
 		}
 	}
 }
@@ -115,14 +120,14 @@ struct LibraryCellView: View {
 extension LibraryCellView {
 	@ViewBuilder
 	private func _actions(for app: AppInfoPresentable) -> some View {
-		Button(.localized("Delete"), systemImage: "trash", role: .destructive) {
+		Button("حذف", systemImage: "trash", role: .destructive) {
 			Storage.shared.deleteApp(for: app)
 		}
 	}
 	
 	@ViewBuilder
 	private func _contextActions(for app: AppInfoPresentable) -> some View {
-		Button(.localized("Get Info"), systemImage: "info.circle") {
+		Button("معلومات التطبيق", systemImage: "info.circle") {
 			selectedInfoAppPresenting = AnyApp(base: app)
 		}
 	}
@@ -131,24 +136,24 @@ extension LibraryCellView {
 	private func _contextActionsExtra(for app: AppInfoPresentable) -> some View {
 		if app.isSigned {
 			if let id = app.identifier {
-				Button(.localized("Open"), systemImage: "app.badge.checkmark") {
+				Button("فتح التطبيق", systemImage: "app.badge.checkmark") {
 					UIApplication.openApp(with: id)
 				}
 			}
-			Button(.localized("Install"), systemImage: "square.and.arrow.down") {
+			Button("تثبيت", systemImage: "square.and.arrow.down") {
 				selectedInstallAppPresenting = AnyApp(base: app)
 			}
-			Button(.localized("Re-sign"), systemImage: "signature") {
+			Button("إعادة توقيع", systemImage: "signature") {
 				selectedSigningAppPresenting = AnyApp(base: app)
 			}
-			Button(.localized("Export"), systemImage: "square.and.arrow.up") {
+			Button("تصدير IPA", systemImage: "square.and.arrow.up") {
 				selectedInstallAppPresenting = AnyApp(base: app, archive: true)
 			}
 		} else {
-			Button(.localized("Install"), systemImage: "square.and.arrow.down") {
+			Button("تثبيت", systemImage: "square.and.arrow.down") {
 				selectedInstallAppPresenting = AnyApp(base: app)
 			}
-			Button(.localized("Sign"), systemImage: "signature") {
+			Button("توقيع", systemImage: "signature") {
 				selectedSigningAppPresenting = AnyApp(base: app)
 			}
 		}
@@ -162,7 +167,7 @@ extension LibraryCellView {
 					selectedInstallAppPresenting = AnyApp(base: app)
 				} label: {
 					FRExpirationPillView(
-						title: .localized("Install"),
+						title: "تثبيت",
 						revoked: certRevoked,
 						expiration: certInfo
 					)
@@ -172,7 +177,7 @@ extension LibraryCellView {
 					selectedSigningAppPresenting = AnyApp(base: app)
 				} label: {
 					FRExpirationPillView(
-						title: .localized("Sign"),
+						title: "توقيع",
 						revoked: false,
 						expiration: nil
 					)
