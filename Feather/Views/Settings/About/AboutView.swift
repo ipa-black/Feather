@@ -39,7 +39,7 @@ struct AboutView: View {
 	
 	// MARK: Body
 	var body: some View {
-		NBList(.localized("About")) {
+		NBList("حول التطبيق") {
 			Section {
 				VStack {
 					// App Image
@@ -56,14 +56,16 @@ struct AboutView: View {
 					.clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
 					.padding(.bottom, 8)
 					
-					Text(Bundle.main.exec)
+					// تثبيت اسم التطبيق
+					Text("SY STORE")
 						.font(.largeTitle)
 						.bold()
 						.foregroundStyle(Color.accentColor)
 					
+					// تثبيت رقم الإصدار
 					HStack(spacing: 4) {
-						Text(.localized("Version"))
-						Text(Bundle.main.version)
+						Text("الإصدار")
+						Text("1.0")
 					}
 					.font(.footnote)
 					.foregroundStyle(.secondary)
@@ -72,7 +74,8 @@ struct AboutView: View {
 			.frame(maxWidth: .infinity)
 			.listRowBackground(EmptyView())
 			
-			NBSection(.localized("Credits")) {
+			// تغيير العنوان إلى المطورين
+			NBSection("المطورين") {
 				ForEach(_credits, id: \.link) { credit in
 					_credit(
 						name: credit.name,
@@ -108,7 +111,9 @@ extension AboutView {
 					isCircle: true
 				)
 				
-				Image(systemName: "arrow.up.right")
+                Spacer() // لدفع السهم إلى الطرف الآخر بشكل مرتب
+                
+				Image(systemName: "arrow.up.left") // استخدام سهم يناسب اللغة العربية (من اليمين لليسار)
 					.foregroundColor(.secondary.opacity(0.65))
 			}
 		}
