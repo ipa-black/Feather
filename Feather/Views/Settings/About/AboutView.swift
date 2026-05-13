@@ -57,7 +57,7 @@ struct AboutView: View {
 					.padding(.bottom, 8)
 					
 					// تثبيت اسم التطبيق
-					Text("SY STORE")
+					Text("CY STORE")
 						.font(.largeTitle)
 						.bold()
 						.foregroundStyle(Color.accentColor)
