@@ -137,10 +137,14 @@ struct SourcesAddView: View {
 					}
 				}
 			}
-            // 🔥 دمج شريط الأدوات مباشرة هنا بطريقة تدعم iOS 15 بدون مشاكل
 			.toolbar {
 				ToolbarItem(placement: .navigationBarLeading) {
-					NBToolbarButton(role: .close)
+					Button {
+						dismiss()
+					} label: {
+						Image(systemName: "xmark")
+							.fontWeight(.semibold)
+					}
 				}
 				
 				ToolbarItem(placement: .navigationBarTrailing) {
