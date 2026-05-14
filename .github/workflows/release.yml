@@ -22,15 +22,19 @@ jobs:
 
       - name: Compile SY STORE
         run: | 
-          # البحث عن كل ملفات Package.swift في المشروع وتوحيد الإصدارات إلى 15 تلقائياً
-          find . -name "Package.swift" -exec sed -i '' 's/\.v16/\.v15/g' {} + || true
-          find . -name "Package.swift" -exec sed -i '' 's/\.v14/\.v15/g' {} + || true
-          find . -name "Package.swift" -exec sed -i '' 's/\.v12/\.v15/g' {} + || true
+          # تصحيح ذكي: تغيير إصدارات iOS و tvOS فقط إلى 15
+          find . -name "Package.swift" -exec sed -i '' 's/\.iOS(\.v16)/\.iOS(\.v15)/g' {} + || true
+          find . -name "Package.swift" -exec sed -i '' 's/\.tvOS(\.v16)/\.tvOS(\.v15)/g' {} + || true
+          find . -name "Package.swift" -exec sed -i '' 's/\.iOS(\.v14)/\.iOS(\.v15)/g' {} + || true
           
-          # تحديث رقم البناء بناءً على الـ Commit الحالي
+          # تصحيح مشكلة الماك التي أوقفت البناء (إرجاعها لإصدار 13 المستقر)
+          find . -name "Package.swift" -exec sed -i '' 's/\.macOS(\.v16)/\.macOS(\.v13)/g' {} + || true
+          find . -name "Package.swift" -exec sed -i '' 's/\.macOS(\.v15)/\.macOS(\.v13)/g' {} + || true
+          
+          # تحديث رقم البناء
           agvtool new-version -all $(git rev-parse HEAD)
           
-          # بدء عملية التجميع
+          # بدء التجميع
           make
           mkdir upload
           mv packages/* upload/
@@ -38,7 +42,6 @@ jobs:
       - name: Extract Version
         id: get_version
         run: |
-          # إنشاء رقم إصدار يعتمد على التاريخ والـ Commit
           VERSION=$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
