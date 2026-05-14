@@ -147,9 +147,10 @@ extension ResetView {
 		let fileManager = FileManager.default
 		let tmpDirectory = fileManager.temporaryDirectory
 		
-		if let files = try? fileManager.contentsOfDirectory(atPath: tmpDirectory.path()) {
+        // تم استبدال .path() بـ .path ليدعم iOS 15
+		if let files = try? fileManager.contentsOfDirectory(atPath: tmpDirectory.path) {
 			for file in files {
-				try? fileManager.removeItem(atPath: tmpDirectory.appendingPathComponent(file).path())
+				try? fileManager.removeItem(atPath: tmpDirectory.appendingPathComponent(file).path)
 			}
 		}
 	}
