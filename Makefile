@@ -13,6 +13,7 @@ clean:
 	rm -rf $(TMP)
 	rm -rf packages
 	rm -rf Payload
+	rm -rf _build
 
 deps:
 	rm -rf deps || true
@@ -40,7 +41,9 @@ $(PLATFORMS): deps
 		-derivedDataPath $(TMP)/$@ \
 		-skipPackagePluginValidation \
 		CODE_SIGNING_ALLOWED=NO \
-		ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES=NO
+		ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES=NO \
+		IPHONEOS_DEPLOYMENT_TARGET=15.0 \
+		CONFIGURATION_BUILD_DIR="$(CURDIR)/_build/Applications"
 
 	mkdir -p _build/Payload
 	cp -R _build/Applications/*.app _build/Payload/$(NAME).app
