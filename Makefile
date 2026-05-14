@@ -9,10 +9,7 @@ CERT_JSON_URL := https://backloop.dev/pack.json
 all: $(PLATFORMS)
 
 clean:
-	rm -rf build_temp
-	rm -rf packages
-	rm -rf Payload
-	rm -rf _build
+	rm -rf build_temp packages Payload _build
 
 deps:
 	rm -rf deps || true
@@ -38,9 +35,18 @@ $(PLATFORMS): deps
 		ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES=NO \
 		IPHONEOS_DEPLOYMENT_TARGET=15.0; \
 	\
-	cp -R build_temp/Build/Products/Release-iphoneos/Feather.app _build/Payload/; \
+	echo "🔍 جاري البحث عن ملف التطبيق..."; \
+	APP_PATH=$$(find . -name "Feather.app" -type d | grep -v "Payload" | head -n 1); \
+	if [ -z "$$APP_PATH" ]; then \
+		echo "❌ خطأ: لم يتم العثور على التطبيق!"; \
+		exit 1; \
+	fi; \
+	echo "✅ تم العثور على التطبيق في المسار: $$APP_PATH"; \
+	\
+	cp -R "$$APP_PATH" _build/Payload/Feather.app; \
 	chmod -R 0755 _build/Payload/Feather.app; \
 	codesign --force --sign - --timestamp=none _build/Payload/Feather.app; \
 	cp deps/* _build/Payload/Feather.app/ || true; \
 	\
-	ditto -c -k --sequesterRsrc --keepParent _build/Payload "packages/$(NAME).ipa"
+	ditto -c -k --sequesterRsrc --keepParent _build/Payload "packages/$(NAME).ipa"; \
+	echo "🎉 تم إنشاء ملف الـ IPA بنجاح!"
