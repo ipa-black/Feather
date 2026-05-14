@@ -77,8 +77,8 @@ struct SourcesAddView: View {
 							dismiss()
 						}
 					} label: {
-                        Label(.localized("Import"), systemImage: "square.and.arrow.down")
-                    }
+						Label(.localized("Import"), systemImage: "square.and.arrow.down")
+					}
 					
 					Button {
 						let sources = Storage.shared.getSources()
@@ -99,8 +99,8 @@ struct SourcesAddView: View {
 							dismiss()
 						}
 					} label: {
-                        Label(.localized("Export"), systemImage: "doc.on.doc")
-                    }
+						Label(.localized("Export"), systemImage: "doc.on.doc")
+					}
 				} footer: {
 					Text(.localized("Supports importing from KravaSign/MapleSign and ESign."))
 				}
@@ -114,38 +114,53 @@ struct SourcesAddView: View {
 									subtitle: url.host ?? url.absoluteString,
 									iconUrl: source.currentIconURL
 								)
-                                
-                                Spacer()
-                                
+								
+								Spacer()
+								
 								Button {
 									Storage.shared.addSource(url, repository: source) { _ in
 										_refreshFilteredRecommendedSourcesData()
 									}
 								} label: {
 									Text(.localized("Add"))
-                                        .font(.subheadline.weight(.bold))
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 6)
-                                        .background(Color.accentColor.opacity(0.1))
-                                        .clipShape(Capsule())
+										.font(.subheadline.weight(.bold))
+										.padding(.horizontal, 12)
+										.padding(.vertical, 6)
+										.background(Color.accentColor.opacity(0.1))
+										.clipShape(Capsule())
 								}
 							}
-                            .padding(.vertical, 2)
+							.padding(.vertical, 2)
 						}
 					} footer: {
 						Text(.localized("Open an [issue](https://github.com/claration/Feather/issues) on GitHub if you want your source to be featured."))
 					}
 				}
 			}
-            .safeAddSourceToolbar(
-                isImporting: _isImporting,
-                sourceURL: _sourceURL,
-                saveAction: {
-                    FR.handleSource(_sourceURL) {
-                        dismiss()
-                    }
-                }
-            )
+            // 🔥 دمج شريط الأدوات مباشرة هنا بطريقة تدعم iOS 15 بدون مشاكل
+			.toolbar {
+				ToolbarItem(placement: .navigationBarLeading) {
+					NBToolbarButton(role: .close)
+				}
+				
+				ToolbarItem(placement: .navigationBarTrailing) {
+					HStack {
+						if !_isImporting {
+							Button {
+								FR.handleSource(_sourceURL) {
+									dismiss()
+								}
+							} label: {
+								Text(.localized("Save"))
+									.fontWeight(.semibold)
+							}
+							.disabled(_sourceURL.isEmpty)
+						} else {
+							ProgressView()
+						}
+					}
+				}
+			}
 			.animation(.default, value: _filteredRecommendedSourcesData.map { $0.data.id ?? "" })
 			.task {
 				await _fetchRecommendedRepositories()
@@ -214,34 +229,4 @@ struct SourcesAddView: View {
 		
 		return results
 	}
-}
-
-// MARK: - Compatibility Extensions
-private extension View {
-    @ViewBuilder
-    func safeAddSourceToolbar(isImporting: Bool, sourceURL: String, saveAction: @escaping () -> Void) -> some View {
-        self.toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                NBToolbarButton(role: .cancel)
-            }
-            
-            ToolbarItem(placement: .navigationBarTrailing) {
-                // 🔥 تم إضافة HStack هنا لحل مشكلة buildEither الخاصة بـ iOS 15
-                HStack {
-                    if !isImporting {
-                        NBToolbarButton(
-                            .localized("Save"),
-                            style: .text,
-                            placement: .confirmationAction,
-                            isDisabled: sourceURL.isEmpty
-                        ) {
-                            saveAction()
-                        }
-                    } else {
-                        ProgressView()
-                    }
-                }
-            }
-        }
-    }
 }
