@@ -34,11 +34,11 @@ struct SourceAppsDetailView: View {
 			}
 			
 			VStack(alignment: .leading, spacing: 10) {
-				HStack(spacing: 10) {
+				HStack(spacing: 15) { // زيادة المسافة قليلاً للتنسيق
 					if let iconURL = app.iconURL {
 						LazyImage(url: iconURL) { state in
 							if let image = state.image {
-								image.appIconStyle(size: 111, isCircle: false)
+								image.appIconStyle(size: 100, isCircle: false) // حجم متناسق 100
 							} else {
 								standardIcon
 							}
@@ -47,12 +47,11 @@ struct SourceAppsDetailView: View {
 						standardIcon
 					}
 
-					VStack(alignment: .leading, spacing: 2) {
+					VStack(alignment: .leading, spacing: 4) {
 						Text(app.currentName)
-							.font(.title2)
-							.fontWeight(.semibold)
+							.font(.title3.weight(.semibold)) // حجم متناسق ومتوافق مع iOS 15
 							.foregroundColor(.primary)
-						Text(app.currentDescription ?? "تطبيق مميز") // تعريب الوصف الافتراضي
+						Text(app.currentDescription ?? "تطبيق مميز")
 							.font(.subheadline)
 							.foregroundColor(.secondary)
 						
@@ -75,15 +74,9 @@ struct SourceAppsDetailView: View {
                     
 					Divider()
 				}
-				
-                // تم إزالة قسم "ما الجديد" (What's New)
-                // تم إزالة قسم "الوصف" (Description)
                 
 				NBSection("المعلومات") {
 					VStack(spacing: 12) {
-                        // تم إزالة صف "المصدر" (Source)
-                        // تم إزالة صف "المطور" (Developer)
-						
 						if let size = app.size {
 							_infoRow(title: "الحجم", value: size.formattedByteCount)
 						}
@@ -142,11 +135,7 @@ struct SourceAppsDetailView: View {
 			}
 			.padding([.horizontal, .bottom])
 			.padding(.top, {
-				if #available(iOS 18, *) {
-					8
-				} else {
-					0
-				}
+				if #available(iOS 18, *) { 8 } else { 0 }
 			}())
 		}
 		.flexibleHeaderScrollView()
@@ -161,7 +150,7 @@ struct SourceAppsDetailView: View {
 				\(app.currentDescription ?? "تطبيق مميز")
 				---
 				تمت المشاركة من SY STORE
-				""" // تم إزالة رابط السورس من المشاركة للحفاظ على سرية المتجر
+				"""
 				UIActivityViewController.show(activityItems: [sharedString])
 			}
 		}
@@ -176,7 +165,7 @@ struct SourceAppsDetailView: View {
 	}
 	
 	var standardIcon: some View {
-		Image("App_Unknown").appIconStyle(size: 111, isCircle: false)
+		Image("App_Unknown").appIconStyle(size: 100, isCircle: false)
 	}
 	
 	var standardHeader: some View {
@@ -257,7 +246,17 @@ extension SourceAppsDetailView {
 	
 	@ViewBuilder
 	private func _infoRow(title: String, value: String) -> some View {
-		LabeledContent(title, value: value)
+        // حل مشكلة LabeledContent لـ iOS 15
+        if #available(iOS 16.0, *) {
+            LabeledContent(title, value: value)
+        } else {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(value)
+                    .foregroundColor(.secondary)
+            }
+        }
 		Divider()
 	}
 	
