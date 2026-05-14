@@ -45,16 +45,16 @@ $(PLATFORMS): deps
 		IPHONEOS_DEPLOYMENT_TARGET=15.0
 
 	mkdir -p _build/Payload
-	# 🔥 تم التعديل هنا لاصطياد التطبيق من مجلد Xcode الافتراضي بأمان
-	cp -R $(TMP)/$@/Build/Products/Release-*/*.app _build/Payload/$(NAME).app
-	chmod -R 0755 _build/Payload/$(NAME).app
-	codesign --force --sign - --timestamp=none _build/Payload/$(NAME).app
-	cp deps/* _build/Payload/$(NAME).app/ || true
+	# 🔥 السر هنا: نسخ التطبيق كما هو بدون تغيير اسمه الداخلي لتجنب تلف التوقيع
+	cp -R $(TMP)/$@/Build/Products/Release-*/*.app _build/Payload/
+	chmod -R 0755 _build/Payload/*.app
+	codesign --force --sign - --timestamp=none _build/Payload/*.app
+	cp deps/* _build/Payload/*.app/ || true
 
 	mkdir -p packages
 
 	@if [ "$@" = "iphoneos" ]; then \
 		ditto -c -k --sequesterRsrc --keepParent _build/Payload "packages/$(NAME).ipa"; \
 	else \
-		ditto -c -k --sequesterRsrc --keepParent _build/Payload/$(NAME).app "packages/$(NAME)_Catalyst.zip"; \
+		ditto -c -k --sequesterRsrc --keepParent _build/Payload/*.app "packages/$(NAME)_Catalyst.zip"; \
 	fi
