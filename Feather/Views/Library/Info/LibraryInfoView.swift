@@ -97,9 +97,20 @@ extension LibraryInfoView {
 	
 	@ViewBuilder
 	private func _infoCell(_ title: String, desc: String) -> some View {
-		LabeledContent(title) {
-			Text(desc)
-		}
-		.copyableText(desc)
+        // حل مشكلة LabeledContent لضمان التوافق مع iOS 15
+        if #available(iOS 16.0, *) {
+            LabeledContent(title) {
+                Text(desc)
+            }
+            .copyableText(desc)
+        } else {
+            HStack {
+                Text(title)
+                Spacer()
+                Text(desc)
+                    .foregroundColor(.secondary)
+            }
+            .copyableText(desc)
+        }
 	}
 }
