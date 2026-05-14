@@ -22,19 +22,26 @@ jobs:
 
       - name: Compile SY STORE
         run: | 
-          # تصحيح ذكي: تغيير إصدارات iOS و tvOS فقط إلى 15
-          find . -name "Package.swift" -exec sed -i '' 's/\.iOS(\.v16)/\.iOS(\.v15)/g' {} + || true
-          find . -name "Package.swift" -exec sed -i '' 's/\.tvOS(\.v16)/\.tvOS(\.v15)/g' {} + || true
-          find . -name "Package.swift" -exec sed -i '' 's/\.iOS(\.v14)/\.iOS(\.v15)/g' {} + || true
+          # 1. توحيد إصدارات iOS إلى 15
+          find . -name "Package.swift" -exec sed -i '' 's/\.v16/\.v15/g' {} + || true
+          find . -name "Package.swift" -exec sed -i '' 's/\.v14/\.v15/g' {} + || true
+          find . -name "Package.swift" -exec sed -i '' 's/\.v12/\.v15/g' {} + || true
           
-          # تصحيح مشكلة الماك التي أوقفت البناء (إرجاعها لإصدار 13 المستقر)
-          find . -name "Package.swift" -exec sed -i '' 's/\.macOS(\.v16)/\.macOS(\.v13)/g' {} + || true
-          find . -name "Package.swift" -exec sed -i '' 's/\.macOS(\.v15)/\.macOS(\.v13)/g' {} + || true
+          # 2. حل مشكلة رابط مكتبة IDeviceKitten المكسور (تحديث إلى v0.1.62)
+          echo "جاري تحميل التحديث الجديد للمكتبة لاستخراج البصمة..."
+          NEW_URL="https://github.com/jkcoxson/idevice/releases/download/v0.1.62/idevice-xcframework-v0.1.62.zip"
+          curl -sL -o idevice.zip $NEW_URL
+          NEW_CHECKSUM=$(shasum -a 256 idevice.zip | awk '{print $1}')
+          rm idevice.zip
           
-          # تحديث رقم البناء
+          echo "جاري ترقيع (Patch) ملف IDeviceKitten..."
+          # استبدال الرابط القديم بالجديد
+          sed -i '' "s|https://github.com/jkcoxson/idevice/releases/download/v0.1.57/IDevice.xcframework.zip|$NEW_URL|g" IDeviceKitten/Package.swift || true
+          # استبدال البصمة (Checksum) القديمة بالبصمة الجديدة
+          sed -i '' -E "s/checksum:[[:space:]]*\"[^\"]*\"/checksum: \"$NEW_CHECKSUM\"/g" IDeviceKitten/Package.swift || true
+          
+          # 3. تحديث رقم البناء والتجميع
           agvtool new-version -all $(git rev-parse HEAD)
-          
-          # بدء التجميع
           make
           mkdir upload
           mv packages/* upload/
@@ -42,6 +49,7 @@ jobs:
       - name: Extract Version
         id: get_version
         run: |
+          # إنشاء رقم إصدار يعتمد على التاريخ والـ Commit
           VERSION=$(date +'%Y.%m.%d')-$(git rev-parse --short HEAD)
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
 
