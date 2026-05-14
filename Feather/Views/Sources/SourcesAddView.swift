@@ -143,7 +143,8 @@ struct SourcesAddView: View {
 						dismiss()
 					} label: {
 						Image(systemName: "xmark")
-							.fontWeight(.semibold)
+                            // 🔥 تم استبدال fontWeight هنا لتدعم iOS 15
+							.font(.body.weight(.semibold))
 					}
 				}
 				
@@ -156,7 +157,8 @@ struct SourcesAddView: View {
 								}
 							} label: {
 								Text(.localized("Save"))
-									.fontWeight(.semibold)
+                                    // 🔥 تم استبدال fontWeight هنا لتدعم iOS 15
+									.font(.body.weight(.semibold))
 							}
 							.disabled(_sourceURL.isEmpty)
 						} else {
