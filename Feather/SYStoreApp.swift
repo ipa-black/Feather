@@ -10,6 +10,7 @@ import SwiftUI
 import Nuke
 import IDeviceSwift
 import OSLog
+import CoreData // 🔥 تمت إضافة CoreData للتعامل مع قاعدة البيانات لجلب التطبيق والشهادة
 
 @main
 struct SYStoreApp: App {
@@ -39,22 +40,80 @@ struct SYStoreApp: App {
 					)
 				}
 			}
+            // 🔥 هنا السحر: استقبال إشعار التوقيع التلقائي
+            .onReceive(NotificationCenter.default.publisher(for: Notification.Name("SYStore.AutoSignTriggered"))) { _ in
+                // نعطيه نصف ثانية لضمان حفظ التطبيق في قاعدة البيانات بعد التحميل
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    _handleAutoSign()
+                }
+            }
 			.onAppear {
-                // 1. تطبيق وضع المظهر (فاتح/داكن/تلقائي) عند الفتح
 				if let style = UIUserInterfaceStyle(rawValue: UserDefaults.standard.integer(forKey: "Feather.userInterfaceStyle")) {
 					UIApplication.topViewController()?.view.window?.overrideUserInterfaceStyle = style
 				}
 				
-                // 2. تطبيق لون المتجر المخصص (الأزرق السماوي الخاص بك) عند الفتح
 				let storedHex = UserDefaults.standard.string(forKey: "Feather.userTintColor") ?? "#16BFE0"
 				UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: storedHex))
 			}
 		}
 	}
+    
+    // 🔥 دالة التوقيع التلقائي الصامتة
+    private func _handleAutoSign() {
+        let context = storage.context
+        
+        // 1. جلب أحدث تطبيق تم تحميله
+        let appRequest = Imported.fetchRequest()
+        appRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Imported.date, ascending: false)]
+        appRequest.fetchLimit = 1
+        
+        guard let latestApp = try? context.fetch(appRequest).first else { return }
+        
+        // 2. جلب الشهادة الافتراضية
+        let certRequest = CertificatePair.fetchRequest()
+        certRequest.sortDescriptors = [NSSortDescriptor(keyPath: \CertificatePair.date, ascending: false)]
+        
+        guard let certs = try? context.fetch(certRequest), !certs.isEmpty else {
+            UIAlertController.showAlertWithOk(
+                title: "التوقيع التلقائي معلّق",
+                message: "تم التحميل بنجاح، لكن لا توجد شهادة لتوقيعه تلقائياً. يرجى استيراد شهادة."
+            )
+            return
+        }
+        
+        let selectedIndex = UserDefaults.standard.integer(forKey: "feather.selectedCert")
+        let cert = certs.indices.contains(selectedIndex) ? certs[selectedIndex] : certs.first!
+        
+        // 3. جلب الخصائص الافتراضية للتوقيع
+        let options = OptionsManager.shared.options
+        
+        // 4. توقيع التطبيق في الخلفية
+        FR.signPackageFile(
+            latestApp,
+            using: options,
+            icon: nil,
+            certificate: cert
+        ) { error in
+            DispatchQueue.main.async {
+                if let error = error {
+                    UIAlertController.showAlertWithOk(title: "فشل التوقيع التلقائي", message: error.localizedDescription)
+                } else {
+                    // حذف التطبيق الأصلي لتوفير المساحة (إذا كان الخيار مفعلاً)
+                    if options.post_deleteAppAfterSigned {
+                        Storage.shared.deleteApp(for: latestApp)
+                    }
+                    
+                    // إطلاق إشعار التثبيت ليظهر للمستخدم فوراً
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                        NotificationCenter.default.post(name: Notification.Name("SYStore.installApp"), object: nil)
+                    }
+                }
+            }
+        }
+    }
 	
 	private func _handleURL(_ url: URL) {
 		if url.scheme == "systore" {
-			/// systore://import-certificate?p12=<base64>&mobileprovision=<base64>&password=<base64>
 			if url.host == "import-certificate" {
 				guard
 					let components = URLComponents(url: url, resolvingAgainstBaseURL: false),
@@ -103,11 +162,9 @@ struct SYStoreApp: App {
 				
 				return
 			}
-			/// systore://source/<url>
 			if let fullPath = url.validatedScheme(after: "/source/") {
 				FR.handleSource(fullPath) { }
 			}
-			/// systore://install/<url.ipa>
 			if
 				let fullPath = url.validatedScheme(after: "/install/"),
 				let downloadURL = URL(string: fullPath)
@@ -150,7 +207,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
 				config.urlCache = nil
 				return DataLoader(configuration: config)
 			}()
-            // تغيير اسم الكاش ليكون خاص بـ SY Store
 			let dataCache = try? DataCache(name: "com.systore.datacache") 
 			let imageCache = Nuke.ImageCache()
 			dataCache?.sizeLimit = 500 * 1024 * 1024
