@@ -182,7 +182,6 @@ struct SYStoreApp: App {
                     .onReceive(NotificationCenter.default.publisher(for: .heartbeatInvalidHost)) { _ in
                         DispatchQueue.main.async { UIAlertController.showAlertWithOk(title: "خطأ في ملف الربط", message: "ملف الربط الخاص بك غير متوافق مع هذا الجهاز.") }
                     }
-                    // ❌ تم إزالة إشعار التوقيع القديم البطيء من هنا
                 } else {
                     ActivationView()
                 }
