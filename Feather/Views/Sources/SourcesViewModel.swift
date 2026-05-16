@@ -2,8 +2,6 @@
 //  SourcesViewModel.swift
 //  Feather
 //
-//  Modified for CY STORE - Fast Memory Cache ⚡️
-//
 
 import Foundation
 import AltSourceKit
@@ -29,10 +27,10 @@ final class SourcesViewModel: ObservableObject {
 		isFinished = false
 		defer { isFinished = true }
 		
-		let sourcesArray = Array(sourcesList)
+        // 🔥 الحل الذهبي للسرعة: قمنا بإزالة السطر الذي يمسح الشاشة (self.sources = [:])
+        // الآن ستبقى التطبيقات موجودة على الشاشة أثناء تحديثها في الخلفية ولن يضطر المستخدم للانتظار!
 		
-        // ⚡️ تم إزالة السطر الذي يمسح الشاشة (self.sources = [:]) 
-        // التطبيقات ستبقى ظاهرة في الواجهة ولن يضطر المشترك للانتظار!
+		let sourcesArray = Array(sourcesList)
 		
 		for startIndex in stride(from: 0, to: sourcesArray.count, by: batchSize) {
 			let endIndex = min(startIndex + batchSize, sourcesArray.count)
@@ -67,7 +65,6 @@ final class SourcesViewModel: ObservableObject {
 				return results
 			}
 			
-            // تحديث الواجهة بصمت في الخلفية إذا كان هناك تطبيقات جديدة
 			await MainActor.run {
 				for (source, repo) in batchResults {
 					self.sources[source] = repo
