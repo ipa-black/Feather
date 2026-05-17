@@ -3,6 +3,7 @@
 //  Feather
 //
 //  Created by samara on 22.04.2025.
+//  Modified for CY STORE - Sync Database Fix ⚡️
 //
 
 import Foundation.NSURL
@@ -25,8 +26,13 @@ enum FR {
 				try await handler.copy()
 				try await handler.extract()
 				try await handler.move()
-				try await handler.addToDatabase()
+				try await handler.addToDatabase() // يتم الحفظ هنا
 				try? await handler.clean()
+				
+                // 🔥 الإصلاح هنا: إعطاء CoreData مهلة نصف ثانية لتستقر البيانات تماماً 
+                // قبل إعطاء إشارة البدء للتوقيع. هذا يمنع ضياع التطبيق!
+                try? await Task.sleep(nanoseconds: 500_000_000)
+                
 				await MainActor.run {
 					completion(nil)
 				}
@@ -181,7 +187,6 @@ enum FR {
 	}
 	
 	static func exportCertificateAndOpenUrl(using template: String) {
-		// Helper that performs the export for a given certificate
 		func performExport(for certificate: CertificatePair) {
 			guard
 				let certificateKeyFile = Storage.shared.getFile(.certificate, from: certificate),
