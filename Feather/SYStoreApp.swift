@@ -3,7 +3,7 @@
 //  SY STORE
 //
 //  Created by samara on 10.04.2025.
-//  Modified for CY STORE - Native iOS Activation, Firebase Fix & Typo Resolved 📱⚡️.
+//  Modified for CY STORE - VIP Smart Scanner & Firebase Fix 📱⚡️.
 //
 
 import SwiftUI
@@ -20,7 +20,8 @@ class StoreAuthManager: ObservableObject {
     @Published var isChecking: Bool = true
     @Published var errorMessage: String? = nil
     
-    let firebaseURL = "https://systore-b04e9-default-rtdb.firebaseio.com/codes/"
+    // الرابط الأساسي لقاعدة البيانات
+    let firebaseDB = "https://systore-b04e9-default-rtdb.firebaseio.com"
     
     init() {
         checkAuthOnLaunch()
@@ -45,16 +46,14 @@ class StoreAuthManager: ObservableObject {
     }
     
     func verifyCodeFromServer(code: String, completion: @escaping (Bool, String?) -> Void) {
-        var rawCode = code.trimmingCharacters(in: .whitespaces).uppercased()
-        if rawCode.hasPrefix("CY-") {
-            rawCode = String(rawCode.dropFirst(3))
-        } else if rawCode.hasPrefix("CY") {
-            rawCode = String(rawCode.dropFirst(2))
-        }
-        let finalCode = "cy-" + rawCode
+        // 1. تنظيف كود المشترك للبحث عنه بجوهره فقط (بدون cy- ومسافات)
+        var userInput = code.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if userInput.hasPrefix("cy-") { userInput = String(userInput.dropFirst(3)) }
+        else if userInput.hasPrefix("cy") { userInput = String(userInput.dropFirst(2)) }
         
-        guard let url = URL(string: "\(firebaseURL)\(finalCode).json") else {
-            completion(false, "رابط التحقق غير صالح.")
+        // 2. جلب جميع الأكواد من السيرفر للبحث الذكي (تجاهل الحروف الكبيرة والصغيرة)
+        guard let url = URL(string: "\(firebaseDB)/codes.json") else {
+            completion(false, "رابط السيرفر غير صالح.")
             return
         }
         
@@ -64,42 +63,61 @@ class StoreAuthManager: ObservableObject {
                 return
             }
             
-            if let jsonString = String(data: data, encoding: .utf8),
-               jsonString.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
-                completion(false, "الكود غير صحيح أو غير موجود في السيرفر.")
-                return
-            }
-            
             do {
-                if let json = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
-                   let status = json["status"] as? String {
+                if let jsonString = String(data: data, encoding: .utf8),
+                   jsonString.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
+                    completion(false, "قاعدة البيانات فارغة! قم بتوليد كود من البوت أولاً.")
+                    return
+                }
+                
+                guard let codesDict = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any] else {
+                    completion(false, "فشل في قراءة البيانات من السيرفر.")
+                    return
+                }
+                
+                var exactDbKey: String? = nil
+                var foundCodeData: [String: Any]? = nil
+                
+                // 3. البحث الذكي داخل السيرفر (يطابق أي كود مهما كانت طريقة كتابته)
+                for (key, value) in codesDict {
+                    var dbKeyClean = key.lowercased()
+                    if dbKeyClean.hasPrefix("cy-") { dbKeyClean = String(dbKeyClean.dropFirst(3)) }
+                    else if dbKeyClean.hasPrefix("cy") { dbKeyClean = String(dbKeyClean.dropFirst(2)) }
+                    
+                    if dbKeyClean == userInput {
+                        exactDbKey = key
+                        foundCodeData = value as? [String: Any]
+                        break
+                    }
+                }
+                
+                if let exactKey = exactDbKey, let codeData = foundCodeData {
+                    let status = codeData["status"] as? String ?? "unknown"
                     
                     if status == "suspended" {
                         completion(false, "تم تجميد اشتراكك ❄️ يرجى مراجعة الإدارة.")
                     } else if status == "revoked" {
                         completion(false, "تم إيقاف اشتراكك ⛔ الكود تالف أو تم تعويضه.")
                     } else if status == "used" || status == "valid" {
-                        UserDefaults.standard.set(finalCode, forKey: "activation_code")
-                        if status == "valid" { self.markCodeAsUsed(code: finalCode) }
+                        // حفظ الكود الدقيق كما هو موجود في السيرفر
+                        UserDefaults.standard.set(exactKey, forKey: "activation_code")
+                        if status == "valid" { self.markCodeAsUsed(exactKey) }
                         completion(true, nil)
                     } else {
                         completion(false, "حالة الكود غير معروفة.")
                     }
                 } else {
-                    completion(false, "حدث خطأ غير متوقع في قراءة حالة الكود.")
+                    completion(false, "الكود غير صحيح أو غير موجود.")
                 }
+                
             } catch {
-                if let jsonString = String(data: data, encoding: .utf8) {
-                    completion(false, "خطأ في السيرفر: \(jsonString)")
-                } else {
-                    completion(false, "خطأ في قراءة بيانات السيرفر.")
-                }
+                completion(false, "حدث خطأ غير متوقع في معالجة البيانات.")
             }
         }.resume()
     }
     
-    private func markCodeAsUsed(code: String) {
-        guard let url = URL(string: "\(firebaseURL)\(code).json") else { return }
+    private func markCodeAsUsed(_ exactKey: String) {
+        guard let url = URL(string: "\(firebaseDB)/codes/\(exactKey).json") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = "PATCH"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -361,8 +379,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 let p12Url = folderURL.appendingPathComponent("cert.p12"); let provisionUrl = folderURL.appendingPathComponent("cert.mobileprovision"); let passwordUrl = folderURL.appendingPathComponent("cert.txt")
                 guard FileManager.default.fileExists(atPath: p12Url.path), FileManager.default.fileExists(atPath: provisionUrl.path), FileManager.default.fileExists(atPath: passwordUrl.path) else { continue }
                 let password = try String(contentsOf: passwordUrl, encoding: .utf8)
-                
-                // 🔥 تم تصحيح حرف الـ L الصغير هنا بشكل نهائي ليتوافق مع المتغير
                 FR.handleCertificateFiles(p12URL: p12Url, provisionURL: provisionUrl, p12Password: password, certificateName: certName, isDefault: true) { _ in }
             }
             UserDefaults.standard.set(true, forKey: "systore.didImportDefaultCertificates")
