@@ -197,11 +197,8 @@ extension DownloadManager: URLSessionDownloadDelegate {
                     DispatchQueue.main.async {
                         dl.isSigning = true // تغيير شكل الشريط ليصبح "جاري التوقيع"
                         
-                        // استدعاء دالة التوقيع مباشرة من قلب التطبيق (بدون إشعارات ولا انتظار)
-                        if let appDelegate = UIApplication.shared.delegate as? AppDelegate {
-                            // نمرر مدير التحميل لكي يغلق الشريط عندما ينتهي التوقيع
-                            appDelegate.performDirectAutoSign(downloadId: dl.id)
-                        }
+                        // 🔥 تم حل المشكلة: استدعاء دالة التوقيع بشكل مباشر كـ Static Method!
+                        AppDelegate.performDirectAutoSign(downloadId: dl.id)
                     }
                 } else {
                     // إذا لم يكن هناك توقيع تلقائي، نزيل الشريط المكتمل كالمعتاد
