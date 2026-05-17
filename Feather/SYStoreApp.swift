@@ -3,7 +3,7 @@
 //  SY STORE
 //
 //  Created by samara on 10.04.2025.
-//  Modified for CY STORE - VIP Lock Screen & Direct AutoSign ⚡️.
+//  Modified for CY STORE - Native iOS Activation & Firebase Fix 📱⚡️.
 //
 
 import SwiftUI
@@ -45,10 +45,16 @@ class StoreAuthManager: ObservableObject {
     }
     
     func verifyCodeFromServer(code: String, completion: @escaping (Bool, String?) -> Void) {
-        var cleanCode = code.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if !cleanCode.hasPrefix("cy-") { cleanCode = "cy-\(cleanCode)" }
+        // 🔥 الإصلاح الجذري: مطابقة شكل الكود مع البوت (cy- حروف صغيرة والباقي كبير)
+        var rawCode = code.trimmingCharacters(in: .whitespaces).uppercased()
+        if rawCode.hasPrefix("CY-") {
+            rawCode = String(rawCode.dropFirst(3))
+        } else if rawCode.hasPrefix("CY") {
+            rawCode = String(rawCode.dropFirst(2))
+        }
+        let finalCode = "cy-" + rawCode
         
-        guard let url = URL(string: "\(firebaseURL)\(cleanCode).json") else {
+        guard let url = URL(string: "\(firebaseURL)\(finalCode).json") else {
             completion(false, "رابط التحقق غير صالح.")
             return
         }
@@ -59,7 +65,7 @@ class StoreAuthManager: ObservableObject {
                 return
             }
             
-            // 🔥 إصلاح خطأ السيرفر: التعامل مع استجابة Firebase عندما يكون الكود غير موجود (null)
+            // 🔥 معالجة رد فايربيس السليم في حال كان الكود غير موجود
             if let jsonString = String(data: data, encoding: .utf8),
                jsonString.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
                 completion(false, "الكود غير صحيح أو غير موجود في السيرفر.")
@@ -67,7 +73,6 @@ class StoreAuthManager: ObservableObject {
             }
             
             do {
-                // إضافة خيار allowFragments لتجنب مشاكل القراءة
                 if let json = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any],
                    let status = json["status"] as? String {
                     
@@ -76,8 +81,9 @@ class StoreAuthManager: ObservableObject {
                     } else if status == "revoked" {
                         completion(false, "تم إيقاف اشتراكك ⛔ الكود تالف أو تم تعويضه.")
                     } else if status == "used" || status == "valid" {
-                        UserDefaults.standard.set(cleanCode, forKey: "activation_code")
-                        if status == "valid" { self.markCodeAsUsed(code: cleanCode) }
+                        // حفظ الكود الصحيح بالجهاز
+                        UserDefaults.standard.set(finalCode, forKey: "activation_code")
+                        if status == "valid" { self.markCodeAsUsed(code: finalCode) }
                         completion(true, nil)
                     } else {
                         completion(false, "حالة الكود غير معروفة.")
@@ -86,7 +92,12 @@ class StoreAuthManager: ObservableObject {
                     completion(false, "حدث خطأ غير متوقع في قراءة حالة الكود.")
                 }
             } catch {
-                completion(false, "خطأ في قراءة بيانات السيرفر.")
+                // إذا كان هناك خطأ غريب نظهره بدلاً من كلمة "خطأ في القراءة" فقط
+                if let jsonString = String(data: data, encoding: .utf8) {
+                    completion(false, "خطأ في السيرفر: \(jsonString)")
+                } else {
+                    completion(false, "خطأ في قراءة بيانات السيرفر.")
+                }
             }
         }.resume()
     }
@@ -109,7 +120,7 @@ class StoreAuthManager: ObservableObject {
 }
 
 
-// MARK: - شاشة التفعيل الفخمة (ActivationView)
+// MARK: - شاشة التفعيل الفخمة (Native iOS Style) 📱
 struct ActivationView: View {
     @State private var codeInput: String = ""
     @State private var isLoading: Bool = false
@@ -118,51 +129,96 @@ struct ActivationView: View {
     @ObservedObject var authManager = StoreAuthManager.shared
     
     var body: some View {
-        ZStack {
-            Color(UIColor.systemBackground).ignoresSafeArea()
-            VStack(spacing: 30) {
-                Spacer()
-                Image(systemName: "lock.shield.fill").resizable().scaledToFit().frame(width: 100, height: 100).foregroundColor(.blue)
-                Text("CY STORE VIP").font(.largeTitle).fontWeight(.bold)
-                Text("يرجى إدخال كود التفعيل الخاص بك للوصول إلى متجر التطبيقات والشهادات.")
-                    .multilineTextAlignment(.center).foregroundColor(.secondary).padding(.horizontal, 40)
+        NavigationView {
+            Form {
+                Section {
+                    VStack(spacing: 16) {
+                        Image(systemName: "lock.shield.fill")
+                            .font(.system(size: 65))
+                            .foregroundColor(.accentColor)
+                            .padding(.top, 10)
+                        
+                        Text("CY STORE VIP")
+                            .font(.title2)
+                            .fontWeight(.bold)
+                        
+                        Text("يرجى إدخال كود التفعيل الخاص بك للوصول إلى متجر التطبيقات والشهادات.")
+                            .multilineTextAlignment(.center)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 10)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .listRowBackground(Color.clear)
+                }
                 
-                VStack(spacing: 15) {
-                    TextField("CY-XXXXXX", text: $codeInput)
-                        .padding().background(Color(UIColor.secondarySystemBackground)).cornerRadius(12).padding(.horizontal, 40)
-                        .autocapitalization(.allCharacters).disableAutocorrection(true)
-                    
+                Section(header: Text("معلومات الاشتراك")) {
+                    HStack {
+                        Image(systemName: "key.fill")
+                            .foregroundColor(.secondary)
+                            .frame(width: 24)
+                        
+                        TextField("CY-XXXXXX", text: $codeInput)
+                            .autocapitalization(.allCharacters)
+                            .disableAutocorrection(true)
+                            .submitLabel(.done)
+                    }
+                }
+                
+                Section {
                     Button(action: activateCode) {
                         HStack {
-                            if isLoading { ProgressView().progressViewStyle(CircularProgressViewStyle(tint: .white)) }
-                            else { Text("تفعيل المتجر").fontWeight(.bold) }
+                            Spacer()
+                            if isLoading {
+                                ProgressView()
+                            } else {
+                                Text("تفعيل المتجر")
+                                    .fontWeight(.semibold)
+                            }
+                            Spacer()
                         }
-                        .frame(maxWidth: .infinity).padding().background(Color.blue).foregroundColor(.white).cornerRadius(12).padding(.horizontal, 40)
                     }
                     .disabled(codeInput.isEmpty || isLoading)
                 }
-                if let error = authManager.errorMessage {
-                    Text(error).foregroundColor(.red).font(.footnote).multilineTextAlignment(.center).padding(.horizontal)
-                }
-                Spacer()
                 
-                // 🔥 تم تغيير الرابط ليحول إلى حساب التلجرام الخاص بك مباشرة
-                Button("شراء كود تفعيل؟") {
-                    if let url = URL(string: "https://t.me/ipa_black") {
-                        UIApplication.shared.open(url)
+                Section {
+                    if let error = authManager.errorMessage {
+                        Text(error)
+                            .foregroundColor(.red)
+                            .font(.footnote)
+                            .multilineTextAlignment(.leading)
+                    }
+                    
+                    Button(action: {
+                        if let url = URL(string: "https://t.me/ipa_black") {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack {
+                            Image(systemName: "paperplane.fill")
+                            Text("ليس لديك كود؟ شراء كود تفعيل")
+                        }
+                        .font(.callout)
                     }
                 }
-                .foregroundColor(.blue).padding(.bottom, 30)
+            }
+            .navigationTitle("تفعيل الحساب")
+            .navigationBarTitleDisplayMode(.inline)
+            .alert(isPresented: $showAlert) {
+                Alert(title: Text("تنبيه"), message: Text(alertMessage), dismissButton: .default(Text("حسناً")))
             }
         }
-        .alert(isPresented: $showAlert) { Alert(title: Text("تنبيه"), message: Text(alertMessage), dismissButton: .default(Text("حسناً"))) }
     }
     
     private func activateCode() {
         isLoading = true
         authManager.verifyCodeFromServer(code: codeInput) { success, message in
             isLoading = false
-            if !success { self.alertMessage = message ?? "حدث خطأ غير معروف."; self.showAlert = true }
+            if !success {
+                self.alertMessage = message ?? "حدث خطأ غير معروف."
+                self.showAlert = true
+            }
         }
     }
 }
@@ -242,7 +298,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         return true
     }
     
-    // 🔥 دالة الربط المباشر الصاروخية للتوقيع (بدون أي تأخير)
+    // 🔥 دالة الربط المباشر الصاروخية للتوقيع
     func performDirectAutoSign(downloadId: String) {
         let context = Storage.shared.context
         
@@ -271,14 +327,12 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         
         FR.signPackageFile(latestApp, using: options, icon: nil, certificate: cert) { error in
             DispatchQueue.main.async {
-                // في كل الأحوال، عند انتهاء التوقيع أو فشله، يجب إخفاء شريط التحميل/التوقيع
                 DownloadManager.shared.removeDownload(id: downloadId)
                 
                 if let error = error {
                     UIAlertController.showAlertWithOk(title: "فشل التوقيع التلقائي", message: error.localizedDescription)
                 } else {
                     if options.post_deleteAppAfterSigned { Storage.shared.deleteApp(for: latestApp) }
-                    // إطلاق نافذة التثبيت فوراً للمشترك
                     NotificationCenter.default.post(name: Notification.Name("SYStore.installApp"), object: nil)
                 }
             }
@@ -311,7 +365,6 @@ class AppDelegate: NSObject, UIApplicationDelegate {
                 let p12Url = folderURL.appendingPathComponent("cert.p12"); let provisionUrl = folderURL.appendingPathComponent("cert.mobileprovision"); let passwordUrl = folderURL.appendingPathComponent("cert.txt")
                 guard FileManager.default.fileExists(atPath: p12Url.path), FileManager.default.fileExists(atPath: provisionUrl.path), FileManager.default.fileExists(atPath: passwordUrl.path) else { continue }
                 let password = try String(contentsOf: passwordUrl, encoding: .utf8)
-                
                 FR.handleCertificateFiles(p12URL: p12Url, provisionURL: provisionUrl, p12Password: password, certificateName: certName, isDefault: true) { _ in }
             }
             UserDefaults.standard.set(true, forKey: "systore.didImportDefaultCertificates")
