@@ -3,7 +3,6 @@
 //  SY STORE
 //
 //  Created by samara on 10.04.2025.
-//  Modified for CY STORE - VIP Activation Info Fixed 👑.
 //
 
 import SwiftUI
@@ -12,7 +11,7 @@ import UIKit
 import Darwin
 import IDeviceSwift
 
-// MARK: - Extension لجلب الاسم المصنعي الدقيق للجهاز
+// MARK: - جلب الرقم المصنعي الدقيق للجهاز
 extension UIDevice {
     var exactModelName: String {
         var systemInfo = utsname()
@@ -22,7 +21,7 @@ extension UIDevice {
             guard let value = element.value as? Int8, value != 0 else { return identifier }
             return identifier + String(UnicodeScalar(UInt8(value)))
         }
-        return identifier // سيعرض مثلاً: iPhone14,3
+        return identifier
     }
 }
 
@@ -46,14 +45,14 @@ struct SettingsView: View {
             Form {
                 _aboutSection()
                 
-                // 🔥 قسم معلومات التفعيل (VIP) بألوان التطبيق المتناسقة
+                // 🔥 قسم معلومات التفعيل بألوان التطبيق المتناسقة
                 Section {
                     NavigationLink(destination: ActivationInfoView()) {
                         Label("معلومات التفعيل", systemImage: "person.text.rectangle.fill")
-                            .foregroundColor(.accentColor) // 🔥 يأخذ لون المتجر تلقائياً
+                            .foregroundColor(.accentColor)
                     }
                 } footer: {
-                    Text("عرض تفاصيل الاشتراك والكود ومعرف الجهاز (UDID البرمجي).")
+                    Text("عرض تفاصيل الاشتراك والكود ومعرف الجهاز.")
                 }
                 
                 Section {
@@ -123,11 +122,10 @@ extension SettingsView {
     }
 }
 
-// MARK: - شاشة معلومات التفعيل (ActivationInfoView) 📱
+// MARK: - شاشة معلومات التفعيل (ActivationInfoView)
 struct ActivationInfoView: View {
     @AppStorage("activation_code") private var activationCode: String = "غير متوفر"
     
-    // 🔥 جلب الاسم الدقيق (المصنعي) للجهاز
     let deviceName = UIDevice.current.exactModelName
     let deviceUDID = UIDevice.current.identifierForVendor?.uuidString ?? "غير متوفر"
     
@@ -136,7 +134,7 @@ struct ActivationInfoView: View {
             Section(header: Text("تفاصيل الاشتراك الحالي")) {
                 InfoRow(title: "كود التفعيل", value: activationCode.uppercased())
                 InfoRow(title: "طراز الجهاز الدقيق", value: deviceName)
-                InfoRow(title: "UDID (المعرف البرمجي)", value: deviceUDID)
+                InfoRow(title: "المعرف البرمجي (IDFV)", value: deviceUDID)
             }
             
             Section {
@@ -155,7 +153,7 @@ struct ActivationInfoView: View {
                     }
                 }
             } footer: {
-                Text("ملاحظة: نظام آبل يمنع التطبيقات من قراءة الـ UDID الحقيقي. هذا المعرف هو (IDFV) المعتمد داخل التطبيق للتحقق من الاشتراك.")
+                Text("تنبيه: نظام iOS يمنع التطبيقات من قراءة الـ UDID الحقيقي لدواعي أمنية. المعرف الموضح أعلاه هو (IDFV) وهو المعتمد لحماية اشتراكك في المتجر.")
             }
         }
         .navigationTitle("معلومات التفعيل")
