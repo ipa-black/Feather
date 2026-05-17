@@ -3,7 +3,6 @@
 //  SY STORE
 //
 //  Created by samara on 10.04.2025.
-//  Modified for CY STORE - VIP Smart Scanner & Button Fix 📱⚡️.
 //
 
 import SwiftUI
@@ -12,35 +11,22 @@ import IDeviceSwift
 import OSLog
 import CoreData
 
-// MARK: - مدير الحماية والتحقق من الاشتراك (StoreAuthManager)
 class StoreAuthManager: ObservableObject {
     static let shared = StoreAuthManager()
-    
     @Published var isAuthorized: Bool = false
     @Published var isChecking: Bool = true
     @Published var errorMessage: String? = nil
-    
     let firebaseDB = "https://systore-b04e9-default-rtdb.firebaseio.com"
     
-    init() {
-        checkAuthOnLaunch()
-    }
+    init() { checkAuthOnLaunch() }
     
     func checkAuthOnLaunch() {
         guard let userCode = UserDefaults.standard.string(forKey: "activation_code") else {
-            DispatchQueue.main.async {
-                self.isChecking = false
-                self.isAuthorized = false
-            }
+            DispatchQueue.main.async { self.isChecking = false; self.isAuthorized = false }
             return
         }
-        
         verifyCodeFromServer(code: userCode) { success, message in
-            DispatchQueue.main.async {
-                self.isChecking = false
-                self.isAuthorized = success
-                self.errorMessage = message
-            }
+            DispatchQueue.main.async { self.isChecking = false; self.isAuthorized = success; self.errorMessage = message }
         }
     }
     
@@ -50,64 +36,37 @@ class StoreAuthManager: ObservableObject {
         else if userInput.hasPrefix("cy") { userInput = String(userInput.dropFirst(2)) }
         
         guard let url = URL(string: "\(firebaseDB)/codes.json") else {
-            completion(false, "رابط السيرفر غير صالح.")
-            return
+            completion(false, "رابط السيرفر غير صالح."); return
         }
         
         URLSession.shared.dataTask(with: url) { data, response, error in
-            guard let data = data, error == nil else {
-                completion(false, "تعذر الاتصال بالسيرفر. تأكد من الإنترنت.")
-                return
-            }
-            
+            guard let data = data, error == nil else { completion(false, "تعذر الاتصال بالسيرفر."); return }
             do {
-                if let jsonString = String(data: data, encoding: .utf8),
-                   jsonString.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
-                    completion(false, "قاعدة البيانات فارغة! قم بتوليد كود من البوت أولاً.")
-                    return
+                if let jsonString = String(data: data, encoding: .utf8), jsonString.trimmingCharacters(in: .whitespacesAndNewlines) == "null" {
+                    completion(false, "قاعدة البيانات فارغة!"); return
                 }
-                
                 guard let codesDict = try JSONSerialization.jsonObject(with: data, options: .allowFragments) as? [String: Any] else {
-                    completion(false, "فشل في قراءة البيانات من السيرفر.")
-                    return
+                    completion(false, "فشل في قراءة البيانات."); return
                 }
-                
                 var exactDbKey: String? = nil
                 var foundCodeData: [String: Any]? = nil
-                
                 for (key, value) in codesDict {
                     var dbKeyClean = key.lowercased()
                     if dbKeyClean.hasPrefix("cy-") { dbKeyClean = String(dbKeyClean.dropFirst(3)) }
                     else if dbKeyClean.hasPrefix("cy") { dbKeyClean = String(dbKeyClean.dropFirst(2)) }
-                    
-                    if dbKeyClean == userInput {
-                        exactDbKey = key
-                        foundCodeData = value as? [String: Any]
-                        break
-                    }
+                    if dbKeyClean == userInput { exactDbKey = key; foundCodeData = value as? [String: Any]; break }
                 }
-                
                 if let exactKey = exactDbKey, let codeData = foundCodeData {
                     let status = codeData["status"] as? String ?? "unknown"
-                    
-                    if status == "suspended" {
-                        completion(false, "تم تجميد اشتراكك ❄️ يرجى مراجعة الإدارة.")
-                    } else if status == "revoked" {
-                        completion(false, "تم إيقاف اشتراكك ⛔ الكود تالف أو تم تعويضه.")
-                    } else if status == "used" || status == "valid" {
+                    if status == "suspended" { completion(false, "تم تجميد اشتراكك ❄️") }
+                    else if status == "revoked" { completion(false, "تم إيقاف اشتراكك ⛔") }
+                    else if status == "used" || status == "valid" {
                         UserDefaults.standard.set(exactKey, forKey: "activation_code")
                         if status == "valid" { self.markCodeAsUsed(exactKey) }
                         completion(true, nil)
-                    } else {
-                        completion(false, "حالة الكود غير معروفة.")
-                    }
-                } else {
-                    completion(false, "الكود غير صحيح أو غير موجود.")
-                }
-                
-            } catch {
-                completion(false, "حدث خطأ غير متوقع في معالجة البيانات.")
-            }
+                    } else { completion(false, "حالة الكود غير معروفة.") }
+                } else { completion(false, "الكود غير صحيح أو غير موجود.") }
+            } catch { completion(false, "خطأ في معالجة البيانات.") }
         }.resume()
     }
     
@@ -121,15 +80,8 @@ class StoreAuthManager: ObservableObject {
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         URLSession.shared.dataTask(with: request).resume()
     }
-    
-    func logout() {
-        UserDefaults.standard.removeObject(forKey: "activation_code")
-        self.isAuthorized = false
-    }
 }
 
-
-// MARK: - شاشة التفعيل الفخمة (Native iOS Style) 📱
 struct ActivationView: View {
     @State private var codeInput: String = ""
     @State private var isLoading: Bool = false
@@ -142,109 +94,53 @@ struct ActivationView: View {
             Form {
                 Section {
                     VStack(spacing: 16) {
-                        Image(systemName: "lock.shield.fill")
-                            .font(.system(size: 65))
-                            .foregroundColor(.accentColor)
-                            .padding(.top, 10)
-                        
-                        Text("CY STORE VIP")
-                            .font(.title2)
-                            .fontWeight(.bold)
-                        
-                        Text("يرجى إدخال كود التفعيل الخاص بك للوصول إلى متجر التطبيقات والشهادات.")
-                            .multilineTextAlignment(.center)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 10)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
-                    .listRowBackground(Color.clear)
+                        Image(systemName: "lock.shield.fill").font(.system(size: 65)).foregroundColor(.accentColor).padding(.top, 10)
+                        Text("CY STORE VIP").font(.title2).fontWeight(.bold)
+                        Text("يرجى إدخال كود التفعيل الخاص بك للوصول إلى متجر التطبيقات والشهادات.").multilineTextAlignment(.center).font(.subheadline).foregroundColor(.secondary).padding(.horizontal, 10)
+                    }.frame(maxWidth: .infinity).padding(.vertical, 10).listRowBackground(Color.clear)
                 }
-                
                 Section(header: Text("معلومات الاشتراك")) {
                     HStack {
-                        Image(systemName: "key.fill")
-                            .foregroundColor(.secondary)
-                            .frame(width: 24)
-                        
-                        TextField("CY-XXXXXX", text: $codeInput)
-                            .autocapitalization(.allCharacters)
-                            .disableAutocorrection(true)
-                            .submitLabel(.done)
+                        Image(systemName: "key.fill").foregroundColor(.secondary).frame(width: 24)
+                        TextField("CY-XXXXXX", text: $codeInput).autocapitalization(.allCharacters).disableAutocorrection(true).submitLabel(.done)
                     }
                 }
-                
                 Section {
                     Button(action: activateCode) {
                         HStack {
                             Spacer()
-                            if isLoading {
-                                ProgressView()
-                            } else {
-                                Text("تفعيل المتجر")
-                                    .fontWeight(.semibold)
-                            }
+                            if isLoading { ProgressView() } else { Text("تفعيل المتجر").fontWeight(.semibold) }
                             Spacer()
                         }
-                    }
-                    .disabled(codeInput.isEmpty || isLoading)
+                    }.disabled(codeInput.isEmpty || isLoading)
                 }
-                
                 Section {
-                    if let error = authManager.errorMessage {
-                        Text(error)
-                            .foregroundColor(.red)
-                            .font(.footnote)
-                            .multilineTextAlignment(.leading)
-                    }
-                    
-                    Button(action: {
-                        if let url = URL(string: "https://t.me/ipa_black") {
-                            UIApplication.shared.open(url)
-                        }
-                    }) {
-                        HStack {
-                            Image(systemName: "paperplane.fill")
-                            Text("ليس لديك كود؟ شراء كود تفعيل")
-                        }
-                        .font(.callout)
+                    if let error = authManager.errorMessage { Text(error).foregroundColor(.red).font(.footnote).multilineTextAlignment(.leading) }
+                    Button(action: { if let url = URL(string: "https://t.me/ipa_black") { UIApplication.shared.open(url) } }) {
+                        HStack { Image(systemName: "paperplane.fill"); Text("ليس لديك كود؟ شراء كود تفعيل") }.font(.callout)
                     }
                 }
             }
-            .navigationTitle("تفعيل الحساب")
-            .navigationBarTitleDisplayMode(.inline)
-            .alert(isPresented: $showAlert) {
-                Alert(title: Text("تنبيه"), message: Text(alertMessage), dismissButton: .default(Text("حسناً")))
-            }
+            .navigationTitle("تفعيل الحساب").navigationBarTitleDisplayMode(.inline)
+            .alert(isPresented: $showAlert) { Alert(title: Text("تنبيه"), message: Text(alertMessage), dismissButton: .default(Text("حسناً"))) }
         }
     }
     
-    // 🔥 هنا تم إصلاح الخلل: إرجاع التنفيذ للمسار الرئيسي وإخبار التطبيق بفتح المتجر!
     private func activateCode() {
         isLoading = true
         authManager.verifyCodeFromServer(code: codeInput) { success, message in
             DispatchQueue.main.async {
                 self.isLoading = false
-                if success {
-                    withAnimation(.spring()) {
-                        self.authManager.isAuthorized = true
-                    }
-                } else {
-                    self.alertMessage = message ?? "حدث خطأ غير معروف."
-                    self.showAlert = true
-                }
+                if success { withAnimation(.spring()) { self.authManager.isAuthorized = true } }
+                else { self.alertMessage = message ?? "خطأ غير معروف."; self.showAlert = true }
             }
         }
     }
 }
 
-
-// MARK: - التطبيق الأساسي (الموجه)
 @main
 struct SYStoreApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
-    
     @StateObject var authManager = StoreAuthManager.shared
     let heartbeat = HeartbeatManager.shared
     @StateObject var downloadManager = DownloadManager.shared
@@ -257,16 +153,12 @@ struct SYStoreApp: App {
                     VStack { ProgressView("جاري فحص الاشتراك...") }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Color(UIColor.systemBackground))
                 } else if authManager.isAuthorized {
                     VStack {
-                        DownloadHeaderView(downloadManager: downloadManager)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                        VariedTabbarView()
-                            .environment(\.managedObjectContext, storage.context)
-                            .onOpenURL(perform: _handleURL)
-                            .transition(.move(edge: .top).combined(with: .opacity))
+                        DownloadHeaderView(downloadManager: downloadManager).transition(.move(edge: .top).combined(with: .opacity))
+                        VariedTabbarView().environment(\.managedObjectContext, storage.context).onOpenURL(perform: _handleURL).transition(.move(edge: .top).combined(with: .opacity))
                     }
                     .animation(.smooth, value: downloadManager.manualDownloads.description)
                     .onReceive(NotificationCenter.default.publisher(for: .heartbeatInvalidHost)) { _ in
-                        DispatchQueue.main.async { UIAlertController.showAlertWithOk(title: "خطأ في ملف الربط", message: "ملف الربط الخاص بك غير متوافق مع هذا الجهاز.") }
+                        DispatchQueue.main.async { UIAlertController.showAlertWithOk(title: "خطأ", message: "ملف الربط غير متوافق.") }
                     }
                 } else {
                     ActivationView()
@@ -304,20 +196,14 @@ struct SYStoreApp: App {
     }
 }
 
-// MARK: - AppDelegate & Direct Signer
 class AppDelegate: NSObject, UIApplicationDelegate {
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
-        _createPipeline()
-        _createDocumentsDirectories()
-        ResetView.clearWorkCache()
-        _addDefaultCertificates()
-        return true
+        _createPipeline(); _createDocumentsDirectories(); ResetView.clearWorkCache(); _addDefaultCertificates(); return true
     }
     
-    // 🔥 دالة الربط المباشر الصاروخية للتوقيع
-    func performDirectAutoSign(downloadId: String) {
+    // 🔥 جعلنا الدالة static ليتمكن التطبيق من استدعائها فوراً وبدون فشل
+    static func performDirectAutoSign(downloadId: String) {
         let context = Storage.shared.context
-        
         let appRequest = Imported.fetchRequest()
         appRequest.sortDescriptors = [NSSortDescriptor(keyPath: \Imported.date, ascending: false)]
         appRequest.fetchLimit = 1
@@ -344,9 +230,8 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         FR.signPackageFile(latestApp, using: options, icon: nil, certificate: cert) { error in
             DispatchQueue.main.async {
                 DownloadManager.shared.removeDownload(id: downloadId)
-                
                 if let error = error {
-                    UIAlertController.showAlertWithOk(title: "فشل التوقيع التلقائي", message: error.localizedDescription)
+                    UIAlertController.showAlertWithOk(title: "فشل التوقيع", message: error.localizedDescription)
                 } else {
                     if options.post_deleteAppAfterSigned { Storage.shared.deleteApp(for: latestApp) }
                     NotificationCenter.default.post(name: Notification.Name("SYStore.installApp"), object: nil)
@@ -359,8 +244,7 @@ class AppDelegate: NSObject, UIApplicationDelegate {
         DataLoader.sharedUrlCache.diskCapacity = 0
         let pipeline = ImagePipeline {
             let dataLoader: DataLoader = { let config = URLSessionConfiguration.default; config.urlCache = nil; return DataLoader(configuration: config) }()
-            let dataCache = try? DataCache(name: "com.systore.datacache")
-            let imageCache = Nuke.ImageCache()
+            let dataCache = try? DataCache(name: "com.systore.datacache"); let imageCache = Nuke.ImageCache()
             dataCache?.sizeLimit = 500 * 1024 * 1024; imageCache.costLimit = 100 * 1024 * 1024
             $0.dataCache = dataCache; $0.imageCache = imageCache; $0.dataLoader = dataLoader; $0.dataCachePolicy = .automatic; $0.isStoringPreviewsInMemoryCache = false
         }
